@@ -12,7 +12,7 @@
 
     $ ./vendor/bin/sail
 
-### Short command
+### Short alias
 
 To use a short version of command `./vendor/bin/sail` add next alias in `~/.zshrc` or `~/.bashrc`:
 
@@ -20,7 +20,7 @@ To use a short version of command `./vendor/bin/sail` add next alias in `~/.zshr
 
 # Run docker container over laravel sail
 
-**Note**: all further commands without the short command could be run only with `./vendor/bin/sail`
+**Note**: all further commands without the short [alias](#short-alias) could be run only with `./vendor/bin/sail`
 
 Run container
 
