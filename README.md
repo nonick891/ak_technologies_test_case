@@ -1,8 +1,14 @@
+# Application requirements
+
+1. PHP 8;
+2. Composer;
+3. Docker.
+
 # Application installation
 
     $ composer install
 
-# Server via laravel sail
+# Local development
 
 ### Installation
 
@@ -12,15 +18,15 @@
 
     $ ./vendor/bin/sail
 
-### Short alias
+### Alias
 
 To use a short version of command `./vendor/bin/sail` add next alias in `~/.zshrc` or `~/.bashrc`:
 
     alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
 
-# Run docker container over laravel sail
+# Docker container over laravel sail
 
-**Note**: all further commands without the short [alias](#short-alias) could be run only with `./vendor/bin/sail`
+**Note**: all further commands without the short [alias](#alias) could be run only with `./vendor/bin/sail`
 
 Run container
 
