@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\HoldController;
+use App\Http\Controllers\SlotAvailabilityController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,48 +24,23 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 |--------------------------------------------------------------------------
 | Slot Holds API Routes
 |--------------------------------------------------------------------------
-| Defined according to plan without versioned prefixes.
-| All responses are JSON. Placeholder handlers return 501 until implemented.
 */
 Route::middleware('api')->group(function () {
+
     // GET /slots/availability
-    Route::get('/slots/availability', function () {
-        return response()->json([
-            'error' => 'not_implemented',
-            'message' => 'Endpoint not implemented yet.'
-        ], 501);
-    })->name('slots.availability.index');
+    Route::get('/slots/availability', [SlotAvailabilityController::class, 'index'])
+        ->name('slots.availability.index');
 
     // POST /slots/{slot}/hold
-    Route::post('/slots/{slot}/hold', function (Request $request, $slot) {
-        return response()->json([
-            'error' => 'not_implemented',
-            'message' => 'Endpoint not implemented yet.',
-            'details' => [
-                'slot' => $slot,
-            ],
-        ], 501);
-    })->name('slots.holds.store');
+    Route::post('/slots/{slot}/hold', [HoldController::class, 'store'])
+        ->name('slots.holds.store');
 
     // POST /holds/{hold}/confirm
-    Route::post('/holds/{hold}/confirm', function ($hold) {
-        return response()->json([
-            'error' => 'not_implemented',
-            'message' => 'Endpoint not implemented yet.',
-            'details' => [
-                'hold' => $hold,
-            ],
-        ], 501);
-    })->name('holds.confirm');
+    Route::post('/holds/{hold}/confirm', [HoldController::class, 'confirm'])
+        ->name('holds.confirm');
 
     // DELETE /holds/{hold}
-    Route::delete('/holds/{hold}', function ($hold) {
-        return response()->json([
-            'error' => 'not_implemented',
-            'message' => 'Endpoint not implemented yet.',
-            'details' => [
-                'hold' => $hold,
-            ],
-        ], 501);
-    })->name('holds.cancel');
+    Route::delete('/holds/{hold}', [HoldController::class, 'cancel'])
+        ->name('holds.cancel');
+
 });

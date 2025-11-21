@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Hold extends Model
 {
     use HasFactory;
+
+    public const STATUS_HELD      = 'held';
+    public const STATUS_CONFIRMED = 'confirmed';
+    public const STATUS_CANCELLED = 'cancelled';
 
     /**
      * @var array<int, string>
@@ -25,7 +30,7 @@ class Hold extends Model
     protected function casts(): array
     {
         return [
-            'expires_at' => 'datetime',
+            'expires_at' => 'immutable_datetime',
         ];
     }
 
@@ -35,5 +40,29 @@ class Hold extends Model
     public function slot()
     {
         return $this->belongsTo(Slot::class);
+    }
+
+    public function isHeld(): bool
+    {
+        return $this->status === self::STATUS_HELD;
+    }
+
+    public function isConfirmed(): bool
+    {
+        return $this->status === self::STATUS_CONFIRMED;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function isExpired(): bool
+    {
+        if (! $this->expires_at) {
+            return false;
+        }
+
+        return $this->expires_at->lte(CarbonImmutable::now());
     }
 }
