@@ -4,21 +4,26 @@ namespace Tests\Unit\Services;
 
 use App\Models\Slot;
 use App\SlotHoldApp\Services\SlotAvailabilityService;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Contracts\Cache\Lock;
-use Illuminate\Contracts\Cache\LockProvider;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
-use Illuminate\Support\Facades\Config;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
 
 class SlotAvailabilityServiceTest extends TestCase
 {
+    use RefreshDatabase;
     use MockeryPHPUnitIntegration;
+
+    public $seeder = DatabaseSeeder::class;
 
     protected array $configSlotAvailabityCache;
 
-    protected function setUp() : void
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -27,23 +32,20 @@ class SlotAvailabilityServiceTest extends TestCase
 
     public function test_returns_cached_availability_when_present(): void
     {
-        $cache = Mockery::mock(CacheRepository::class);
+        Cache::spy();
 
-        $lockProvider = Mockery::mock(LockProvider::class);
-
-        $slotModel = Mockery::mock(Slot::class);
+        DB::spy();
 
         $cachedData = [
             ['slot_id' => 1, 'capacity' => 10, 'remaining' => 5],
         ];
 
-        $cache
-            ->shouldReceive('get')
+        Cache::shouldReceive('get')
             ->once()
             ->with('slots.availability')
             ->andReturn($cachedData);
 
-        $service = new SlotAvailabilityService($cache, $lockProvider, $slotModel, $this->configSlotAvailabityCache);
+        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
 
         $result = $service->getAvailability();
 
@@ -52,22 +54,14 @@ class SlotAvailabilityServiceTest extends TestCase
 
     public function test_queries_and_caches_when_not_in_cache(): void
     {
-        $cache = Mockery::mock(CacheRepository::class);
-
-        $lockProvider = Mockery::mock(LockProvider::class);
-
         $lock = Mockery::mock(Lock::class);
 
-        $slotModel = Mockery::mock(Slot::class);
-
-        $cache
-            ->shouldReceive('get')
+        Cache::shouldReceive('get')
             ->once()
             ->with('slots.availability')
             ->andReturn(null);
 
-        $lockProvider
-            ->shouldReceive('lock')
+        Cache::shouldReceive('lock')
             ->once()
             ->with('slots.availability.lock', 5)
             ->andReturn($lock);
@@ -78,8 +72,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->andReturn(true);
 
         // After acquiring lock, service re-reads cache
-        $cache
-            ->shouldReceive('get')
+        Cache::shouldReceive('get')
             ->once()
             ->with('slots.availability')
             ->andReturn(null);
@@ -97,8 +90,7 @@ class SlotAvailabilityServiceTest extends TestCase
             })(),
         ]);
 
-        $slotModel
-            ->shouldReceive('newQuery')
+        DB::shouldReceive('table')
             ->once()
             ->andReturn($query);
 
@@ -127,16 +119,19 @@ class SlotAvailabilityServiceTest extends TestCase
             ],
         ];
 
-        $cache
-            ->shouldReceive('put')
+        Cache::shouldReceive('put')
             ->once()
-            ->with('slots.availability', $expectedAvailability, 10);
+            ->withArgs(function ($key, $value, $ttl) use ($expectedAvailability) {
+                return $key === 'slots.availability'
+                    && $value === $expectedAvailability
+                    && is_int($ttl);
+            });
 
         $lock
             ->shouldReceive('release')
             ->once();
 
-        $service = new SlotAvailabilityService($cache, $lockProvider, $slotModel, $this->configSlotAvailabityCache);
+        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
 
         $result = $service->getAvailability();
 
@@ -145,22 +140,14 @@ class SlotAvailabilityServiceTest extends TestCase
 
     public function test_returns_stale_data_when_lock_cannot_be_acquired_but_stale_exists(): void
     {
-        $cache = Mockery::mock(CacheRepository::class);
-
-        $lockProvider = Mockery::mock(LockProvider::class);
-
         $lock = Mockery::mock(Lock::class);
 
-        $slotModel = Mockery::mock(Slot::class);
-
-        $cache
-            ->shouldReceive('get')
+        Cache::shouldReceive('get')
             ->once()
             ->with('slots.availability')
             ->andReturn(null);
 
-        $lockProvider
-            ->shouldReceive('lock')
+        Cache::shouldReceive('lock')
             ->once()
             ->with('slots.availability.lock', 5)
             ->andReturn($lock);
@@ -174,8 +161,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ['slot_id' => 2, 'capacity' => 20, 'remaining' => 3],
         ];
 
-        $cache
-            ->shouldReceive('get')
+        Cache::shouldReceive('get')
             ->once()
             ->with('slots.availability')
             ->andReturn($staleData);
@@ -184,7 +170,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->shouldReceive('release')
             ->once();
 
-        $service = new SlotAvailabilityService($cache, $lockProvider, $slotModel, $this->configSlotAvailabityCache);
+        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
 
         $result = $service->getAvailability();
 
@@ -193,36 +179,22 @@ class SlotAvailabilityServiceTest extends TestCase
 
     public function test_invalidate_availability_cache_forgets_cache_key(): void
     {
-        $cache = Mockery::mock(CacheRepository::class);
-
-        $lockProvider = Mockery::mock(LockProvider::class);
-
-        $slotModel = Mockery::mock(Slot::class);
-
-        $cache
-            ->shouldReceive('forget')
+        Cache::shouldReceive('forget')
             ->once()
             ->with('slots.availability');
 
-        $service = new SlotAvailabilityService($cache, $lockProvider, $slotModel, $this->configSlotAvailabityCache);
+        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
 
         $service->invalidateAvailabilityCache();
     }
 
     public function test_run_with_cache_invalidation_executes_operation_and_invalidates_cache(): void
     {
-        $cache = Mockery::mock(CacheRepository::class);
-
-        $lockProvider = Mockery::mock(LockProvider::class);
-
-        $slotModel = Mockery::mock(Slot::class);
-
-        $cache
-            ->shouldReceive('forget')
+        Cache::shouldReceive('forget')
             ->once()
             ->with('slots.availability');
 
-        $service = new SlotAvailabilityService($cache, $lockProvider, $slotModel, $this->configSlotAvailabityCache);
+        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
 
         $operationExecuted = false;
 

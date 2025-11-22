@@ -7,9 +7,12 @@ use Illuminate\Http\JsonResponse;
 
 class SlotAvailabilityController extends Controller
 {
-    public function __construct(
-        protected SlotAvailabilityService $availabilityService
-    ) {
+    protected SlotAvailabilityService $availabilityService;
+
+    public function __construct() {
+        $this->availabilityService = new SlotAvailabilityService(
+            config('slot_availability_cache')
+        );
     }
 
     /**

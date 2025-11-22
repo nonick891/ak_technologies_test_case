@@ -2,38 +2,41 @@
 
 namespace App\SlotHoldApp\Services;
 
-use App\Models\Slot;
-use Illuminate\Contracts\Cache\Repository as CacheRepository;
-use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class SlotAvailabilityService
 {
-    public function __construct(
-        protected CacheRepository $cache,
-        protected LockProvider $lockProvider,
-        protected Slot $slot,
-        protected array $config
-    ) {
+    /**
+     * Service configuration. If null, will load from config file.
+     *
+     * @var array<string, mixed>
+     */
+    protected array $config;
+
+    public function __construct(?array $config = null)
+    {
+        $this->config = $config ?? config('slot_availability_cache');
     }
 
     public function getAvailability(): array
     {
         $cacheKey = $this->cacheKey();
 
-        $cached = $this->cache->get($cacheKey);
+        $cached = Cache::get($cacheKey);
 
         if ($cached !== null) {
             return $cached;
         }
 
-        $lock = $this->lockProvider->lock(
-            name: $this->lockKey(),
-            seconds: $this->lockSeconds()
+        $lock = Cache::lock(
+            $this->lockKey(),
+            $this->lockSeconds()
         );
 
         try {
             if (! $lock->get()) {
-                $stale = $this->cache->get($cacheKey);
+                $stale = Cache::get($cacheKey);
 
                 if ($stale !== null) {
                     return $stale;
@@ -42,7 +45,7 @@ class SlotAvailabilityService
                 return $this->queryAvailability();
             }
 
-            $cached = $this->cache->get($cacheKey);
+            $cached = Cache::get($cacheKey);
 
             if ($cached !== null) {
                 return $cached;
@@ -50,7 +53,7 @@ class SlotAvailabilityService
 
             $availability = $this->queryAvailability();
 
-            $this->cache->put(
+            Cache::put(
                 key: $cacheKey,
                 value: $availability,
                 ttl: $this->cacheTtlSeconds()
@@ -67,7 +70,7 @@ class SlotAvailabilityService
      */
     public function invalidateAvailabilityCache(): void
     {
-        $this->cache->forget($this->cacheKey());
+        Cache::forget($this->cacheKey());
     }
 
     /**
@@ -92,12 +95,11 @@ class SlotAvailabilityService
      */
     protected function queryAvailability(): array
     {
-        return $this->slot
-            ->newQuery()
+        return DB::table('slots')
             ->select(['id', 'capacity', 'remaining'])
             ->orderBy('id')
             ->get()
-            ->map(static function (Slot $slot): array {
+            ->map(static function ($slot): array {
                 return [
                     'slot_id' => $slot->id,
                     'capacity' => $slot->capacity,

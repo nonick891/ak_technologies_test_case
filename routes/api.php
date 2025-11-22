@@ -25,22 +25,20 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 | Slot Holds API Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware('api')->group(function () {
 
-    // GET /slots/availability
-    Route::get('/slots/availability', [SlotAvailabilityController::class, 'index'])
-        ->name('slots.availability.index');
+// GET /slots/availability
+Route::get('/slots/availability', [SlotAvailabilityController::class, 'index'])
+    ->name('slots.availability.index');
 
-    // POST /slots/{slot}/hold
-    Route::post('/slots/{slot}/hold', [HoldController::class, 'store'])
-        ->name('slots.holds.store');
+// POST /slots/{slot}/hold
+Route::post('/slots/{slot}/hold', [HoldController::class, 'store'])
+    ->name('slots.holds.store');
 
-    // POST /holds/{hold}/confirm
-    Route::post('/holds/{hold}/confirm', [HoldController::class, 'confirm'])
-        ->name('holds.confirm');
+// POST /holds/{hold}/confirm
+Route::post('/holds/{hold}/confirm', [HoldController::class, 'confirm'])
+    ->name('holds.confirm');
 
-    // DELETE /holds/{hold}
-    Route::delete('/holds/{hold}', [HoldController::class, 'cancel'])
-        ->name('holds.cancel');
+// DELETE /holds/{hold}
+Route::delete('/holds/{hold}', [HoldController::class, 'cancel'])
+    ->name('holds.cancel');
 
-});

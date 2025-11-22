@@ -80,7 +80,10 @@ class HoldController extends Controller
         }
 
         DB::transaction(function () use ($hold) {
-            $slot = $hold->slot->freshLockForUpdate();
+            $slot = $hold->slot()
+                ->getQuery()
+                ->lockForUpdate()
+                ->first();;
 
             if ($slot->remaining <= 0) {
                 abort(
@@ -114,7 +117,10 @@ class HoldController extends Controller
         }
 
         DB::transaction(function () use ($hold) {
-            $slot = $hold->slot->freshLockForUpdate();
+            $slot = $hold->slot()
+                ->getQuery()
+                ->lockForUpdate()
+                ->first();
 
             // If already confirmed, put capacity back
             if ($hold->isConfirmed()) {
