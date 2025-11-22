@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\SlotHoldApp\Services\SlotAvailabilityService;
+use App\SlotHoldApp\Services\SlotService;
 use Illuminate\Http\JsonResponse;
 
 class SlotAvailabilityController extends Controller
 {
-    protected SlotAvailabilityService $availabilityService;
+    protected SlotService $slotService;
 
     public function __construct() {
-        $this->availabilityService = new SlotAvailabilityService(
+        $this->slotService = new SlotService(
             config('slot_availability_cache')
         );
     }
@@ -21,7 +21,7 @@ class SlotAvailabilityController extends Controller
     public function index(): JsonResponse
     {
         // Ask the service for current availability (possibly cached)
-        $slots = $this->availabilityService->getAvailability();
+        $slots = $this->slotService->getAvailability();
 
         return response()->json($slots);
     }

@@ -2,19 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\CreateHoldRequest;
 use App\Models\Hold;
 use App\Models\Slot;
-use App\SlotHoldApp\Services\SlotAvailabilityService;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
+use App\Http\Requests\CreateHoldRequest;
+use App\SlotHoldApp\Services\SlotService;
 use Symfony\Component\HttpFoundation\Response;
 
 class HoldController extends Controller
 {
     public function __construct(
-        protected SlotAvailabilityService $availabilityService
+        protected SlotService $slotService
     ) {
     }
 
@@ -27,33 +25,13 @@ class HoldController extends Controller
 
         // 1. Check if a hold with this idempotency key already exists
         $existingHold = Hold::where('idempotency_key', $idempotencyKey)->first();
+
         if ($existingHold) {
             return $this->holdResponse($existingHold, Response::HTTP_OK);
         }
 
         // 2. Create the new hold within a transaction, with row-level lock
-        /** @var Hold $hold */
-        $hold = DB::transaction(function () use ($slot, $idempotencyKey) {
-            // Lock a slot row to prevent overselling
-            $slot->refresh();
-            $slot->lockForUpdate();
-
-            if ($slot->remaining <= 0) {
-                abort(
-                    Response::HTTP_CONFLICT,
-                    'No remaining capacity for this slot.'
-                );
-            }
-
-            $expiresAt = CarbonImmutable::now()->addMinutes(5);
-
-            return Hold::create([
-                'slot_id'         => $slot->id,
-                'status'          => Hold::STATUS_HELD,
-                'idempotency_key' => $idempotencyKey,
-                'expires_at'      => $expiresAt,
-            ]);
-        });
+        $hold = $this->slotService->createHold($slot, $idempotencyKey);
 
         return $this->holdResponse($hold, Response::HTTP_CREATED);
     }
@@ -79,27 +57,10 @@ class HoldController extends Controller
             return $this->holdResponse($hold, Response::HTTP_OK);
         }
 
-        DB::transaction(function () use ($hold) {
-            $slot = $hold->slot()
-                ->getQuery()
-                ->lockForUpdate()
-                ->first();;
-
-            if ($slot->remaining <= 0) {
-                abort(
-                    Response::HTTP_CONFLICT,
-                    'No remaining capacity to confirm this hold.'
-                );
-            }
-
-            $slot->decrement('remaining');
-
-            $hold->status = Hold::STATUS_CONFIRMED;
-            $hold->save();
-        });
+        $this->slotService->confirmHold($hold);
 
         // Invalidate cached availability after state change
-        $this->availabilityService->invalidateAvailabilityCache();
+        $this->slotService->invalidateAvailabilityCache();
 
         return $this->holdResponse($hold->fresh('slot'), Response::HTTP_OK);
     }
@@ -116,23 +77,10 @@ class HoldController extends Controller
             return $this->holdResponse($hold, Response::HTTP_OK);
         }
 
-        DB::transaction(function () use ($hold) {
-            $slot = $hold->slot()
-                ->getQuery()
-                ->lockForUpdate()
-                ->first();
-
-            // If already confirmed, put capacity back
-            if ($hold->isConfirmed()) {
-                $slot->increment('remaining');
-            }
-
-            $hold->status = Hold::STATUS_CANCELLED;
-            $hold->save();
-        });
+        $this->slotService->cancelHold($hold);
 
         // Invalidate cached availability after state change
-        $this->availabilityService->invalidateAvailabilityCache();
+        $this->slotService->invalidateAvailabilityCache();
 
         return $this->holdResponse($hold->fresh('slot'), Response::HTTP_OK);
     }

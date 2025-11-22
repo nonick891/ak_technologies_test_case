@@ -2,10 +2,13 @@
 
 namespace App\SlotHoldApp\Services;
 
+use App\Models\Hold;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 
-class SlotAvailabilityService
+class SlotService
 {
     /**
      * Service configuration. If null, will load from config file.
@@ -126,5 +129,74 @@ class SlotAvailabilityService
     protected function lockSeconds(): int
     {
         return (int) $this->config['lock_seconds'] ?? 5;
+    }
+
+    public function createHold($slot, $idempotencyKey = null)
+    {
+        /** @var Hold $hold */
+        return DB::transaction(function () use ($slot, $idempotencyKey) {
+            // Lock a slot row to prevent overselling
+            $slot->refresh();
+
+            $slot->lockForUpdate();
+
+            if ($slot->remaining <= 0) {
+                abort(
+                    Response::HTTP_CONFLICT,
+                    'No remaining capacity for this slot.'
+                );
+            }
+
+            $expiresAt = CarbonImmutable::now()->addMinutes(5);
+
+            return Hold::create([
+                'slot_id'         => $slot->id,
+                'status'          => Hold::STATUS_HELD,
+                'idempotency_key' => $idempotencyKey,
+                'expires_at'      => $expiresAt,
+            ]);
+        });
+    }
+
+    public function confirmHold($hold = null): void
+    {
+        DB::transaction(function () use ($hold) {
+            $slot = $hold->slot()
+                ->getQuery()
+                ->lockForUpdate()
+                ->first();
+
+            if ($slot->remaining <= 0) {
+                abort(
+                    Response::HTTP_CONFLICT,
+                    'No remaining capacity to confirm this hold.'
+                );
+            }
+
+            $slot->decrement('remaining');
+
+            $hold->status = Hold::STATUS_CONFIRMED;
+
+            $hold->save();
+        });
+    }
+
+    public function cancelHold(Hold $hold): void
+    {
+        DB::transaction(function () use ($hold) {
+            $slot = $hold->slot()
+                ->getQuery()
+                ->lockForUpdate()
+                ->first();
+
+            // If already confirmed, put capacity back
+            if ($hold->isConfirmed()) {
+                $slot->increment('remaining');
+            }
+
+            $hold->status = Hold::STATUS_CANCELLED;
+
+            $hold->save();
+        });
     }
 }

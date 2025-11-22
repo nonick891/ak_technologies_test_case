@@ -3,13 +3,12 @@
 namespace Tests\Unit\Services;
 
 use App\Models\Slot;
-use App\SlotHoldApp\Services\SlotAvailabilityService;
+use App\SlotHoldApp\Services\SlotService;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
@@ -45,7 +44,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->with('slots.availability')
             ->andReturn($cachedData);
 
-        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabityCache);
 
         $result = $service->getAvailability();
 
@@ -131,7 +130,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->shouldReceive('release')
             ->once();
 
-        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabityCache);
 
         $result = $service->getAvailability();
 
@@ -170,7 +169,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->shouldReceive('release')
             ->once();
 
-        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabityCache);
 
         $result = $service->getAvailability();
 
@@ -183,7 +182,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->once()
             ->with('slots.availability');
 
-        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabityCache);
 
         $service->invalidateAvailabilityCache();
     }
@@ -194,7 +193,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->once()
             ->with('slots.availability');
 
-        $service = new SlotAvailabilityService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabityCache);
 
         $operationExecuted = false;
 
