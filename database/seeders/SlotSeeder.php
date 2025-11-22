@@ -20,7 +20,7 @@ class SlotSeeder extends Seeder
 
             Slot::query()->create([
                 'capacity' => $capacity,
-                'remaining' => $capacity,
+                'remaining' => $capacity - 1,
             ]);
         }
     }

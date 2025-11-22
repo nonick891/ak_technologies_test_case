@@ -178,13 +178,26 @@ class SlotAvailabilityServiceTest extends TestCase
 
     public function test_invalidate_availability_cache_forgets_cache_key(): void
     {
+        Cache::spy();
+
         Cache::shouldReceive('forget')
             ->once()
-            ->with('slots.availability');
+            ->with($this->configSlotAvailabityCache['cache_key'])
+            ->andReturnUsing(function() {
+
+                Cache::shouldReceive('get')
+                    ->once()
+                    ->with('slots.availability')
+                    ->andReturn(false);
+
+                return true;
+        });
 
         $service = new SlotService($this->configSlotAvailabityCache);
 
         $service->invalidateAvailabilityCache();
+
+        $this->assertFalse(Cache::get($this->configSlotAvailabityCache['cache_key']));
     }
 
     public function test_run_with_cache_invalidation_executes_operation_and_invalidates_cache(): void

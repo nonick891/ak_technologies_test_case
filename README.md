@@ -36,8 +36,42 @@ Silent run container
 
     $ sail up -d
 
-Shutdown container
+Shutdown the container
 
     $ sail stop
 
+### Migration
 
+    $ sail artisan migrate:fresh
+
+    $ sail artisan db:seed
+
+### CURL commands
+
+Create a hold
+
+    curl -i -X POST "http://localhost/slots/1/hold" \
+        -H "Content-Type: application/json" \
+        -H "Idempotency-Key: 11111111-1111-1111-1111-111111111111"
+
+Check created hold
+
+    curl -i -X POST "http://localhost/slots/1/hold" \
+        -H "Content-Type: application/json" \
+        -H "Idempotency-Key: 11111111-1111-1111-1111-111111111111"
+
+Confirm created hold
+
+    curl -X POST "http://localhost/holds/10/confirm" \
+        -H "Content-Type: application/json"
+
+Create a new hold
+
+    curl -X POST "http://localhost/slots/1/hold" \
+        -H "Content-Type: application/json" \
+        -H "Idempotency-Key: 11111111-1111-1111-1111-111111111112"
+
+Cancel the new hold
+
+    curl -X DELETE "http://localhost/holds/11" \  
+        -H "Content-Type: application/json"  
