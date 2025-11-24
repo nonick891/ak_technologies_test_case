@@ -39,30 +39,20 @@ class SlotService
 
         try {
             if (! $lock->get()) {
-                $stale = Cache::get($cacheKey);
-
-                if ($stale !== null) {
-                    return $stale;
-                }
-
-                return $this->queryAvailability();
+                return [
+                    'message' => 'Lock timeout. Please try again in ' . $this->lockSeconds() . ' seconds.',
+                ];
             }
 
-            $cached = Cache::get($cacheKey);
-
-            if ($cached !== null) {
-                return $cached;
-            }
-
-            $availability = $this->queryAvailability();
+            $slots = $this->getSlots();
 
             Cache::put(
                 key: $cacheKey,
-                value: $availability,
+                value: $slots,
                 ttl: $this->cacheTtlSeconds()
             );
 
-            return $availability;
+            return $slots;
         } finally {
             optional($lock)->release();
         }
@@ -96,7 +86,7 @@ class SlotService
     /**
      * @return array<int, array{slot_id:int, capacity:int, remaining:int}>
      */
-    protected function queryAvailability(): array
+    protected function getSlots(): array
     {
         return DB::table('slots')
             ->select(['id', 'capacity', 'remaining'])
@@ -134,28 +124,37 @@ class SlotService
     public function createHold($slot, $idempotencyKey = null)
     {
         /** @var Hold $hold */
-        return DB::transaction(function () use ($slot, $idempotencyKey) {
-            // Lock a slot row to prevent overselling
-            $slot->refresh();
+        try
+        {
+            $result = DB::transaction(function () use ($slot, $idempotencyKey) {
+                // Lock a slot row to prevent overselling
+                $slot->refresh();
 
-            $slot->lockForUpdate();
+                $slot->lockForUpdate();
 
-            if ($slot->remaining <= 0) {
-                abort(
-                    Response::HTTP_CONFLICT,
-                    'No remaining capacity for this slot.'
-                );
-            }
+                if ($slot->remaining <= 0) {
+                    abort(
+                        Response::HTTP_CONFLICT,
+                        'No remaining capacity for this slot.'
+                    );
+                }
 
-            $expiresAt = CarbonImmutable::now()->addMinutes(5);
+                $expiresAt = CarbonImmutable::now()->addMinutes(5);
 
-            return Hold::create([
-                'slot_id'         => $slot->id,
-                'status'          => Hold::STATUS_HELD,
-                'idempotency_key' => $idempotencyKey,
-                'expires_at'      => $expiresAt,
-            ]);
-        });
+                return Hold::create([
+                    'slot_id'         => $slot->id,
+                    'status'          => Hold::STATUS_HELD,
+                    'idempotency_key' => $idempotencyKey,
+                    'expires_at'      => $expiresAt,
+                ]);
+            });
+        }
+        catch (\Throwable $th)
+        {
+            $result = ['message' => 'Slot is full.', 'details' => []];
+        }
+
+        return $result;
     }
 
     public function confirmHold($hold = null): void

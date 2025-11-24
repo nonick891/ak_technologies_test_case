@@ -20,13 +20,13 @@ class SlotAvailabilityServiceTest extends TestCase
 
     public $seeder = DatabaseSeeder::class;
 
-    protected array $configSlotAvailabityCache;
+    protected array $configSlotAvailabilityCache;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->configSlotAvailabityCache = include __DIR__ . '/../../../config/slot_availability_cache.php';
+        $this->configSlotAvailabilityCache = include __DIR__ . '/../../../config/slot_availability_cache.php';
     }
 
     public function test_returns_cached_availability_when_present(): void
@@ -44,7 +44,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->with('slots.availability')
             ->andReturn($cachedData);
 
-        $service = new SlotService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabilityCache);
 
         $result = $service->getAvailability();
 
@@ -130,7 +130,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->shouldReceive('release')
             ->once();
 
-        $service = new SlotService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabilityCache);
 
         $result = $service->getAvailability();
 
@@ -157,19 +157,14 @@ class SlotAvailabilityServiceTest extends TestCase
             ->andReturn(false);
 
         $staleData = [
-            ['slot_id' => 2, 'capacity' => 20, 'remaining' => 3],
+            'message' => 'Lock timeout. Please try again in ' . $this->configSlotAvailabilityCache['lock_seconds'] . ' seconds.',
         ];
-
-        Cache::shouldReceive('get')
-            ->once()
-            ->with('slots.availability')
-            ->andReturn($staleData);
 
         $lock
             ->shouldReceive('release')
             ->once();
 
-        $service = new SlotService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabilityCache);
 
         $result = $service->getAvailability();
 
@@ -182,22 +177,22 @@ class SlotAvailabilityServiceTest extends TestCase
 
         Cache::shouldReceive('forget')
             ->once()
-            ->with($this->configSlotAvailabityCache['cache_key'])
+            ->with($this->configSlotAvailabilityCache['cache_key'])
             ->andReturnUsing(function() {
 
                 Cache::shouldReceive('get')
                     ->once()
                     ->with('slots.availability')
-                    ->andReturn(false);
+                    ->andReturn(null);
 
                 return true;
         });
 
-        $service = new SlotService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabilityCache);
 
         $service->invalidateAvailabilityCache();
 
-        $this->assertFalse(Cache::get($this->configSlotAvailabityCache['cache_key']));
+        $this->assertNull(Cache::get($this->configSlotAvailabilityCache['cache_key']));
     }
 
     public function test_run_with_cache_invalidation_executes_operation_and_invalidates_cache(): void
@@ -206,7 +201,7 @@ class SlotAvailabilityServiceTest extends TestCase
             ->once()
             ->with('slots.availability');
 
-        $service = new SlotService($this->configSlotAvailabityCache);
+        $service = new SlotService($this->configSlotAvailabilityCache);
 
         $operationExecuted = false;
 

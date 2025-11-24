@@ -14,7 +14,7 @@ return [
 
     'cache_key' => 'slots.availability',
 
-    'ttl_seconds' => 10,
+    'ttl_seconds' => 25,
 
     'lock_key' => 'slots.availability.lock',
 

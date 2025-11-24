@@ -13,6 +13,7 @@ class SlotSeeder extends Seeder
             ['capacity' => 10],
             ['capacity' => 25],
             ['capacity' => 50],
+            ['capacity' => 1],
         ];
 
         foreach ($slots as $slotData) {

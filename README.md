@@ -24,7 +24,7 @@ To use a short version of command `./vendor/bin/sail` add next alias in `~/.zshr
 
     alias sail='sh $([ -f sail ] && echo sail || echo vendor/bin/sail)'
 
-# Docker container over laravel sail
+### Docker container over laravel sail
 
 **Note**: all further commands without the short [alias](#alias) could be run only with `./vendor/bin/sail`
 
@@ -47,6 +47,10 @@ Shutdown the container
     $ sail artisan db:seed
 
 ### CURL commands
+
+Show all slots
+
+    curl "http://localhost/slots/availability"
 
 Create a hold
 
@@ -75,3 +79,9 @@ Cancel the new hold
 
     curl -X DELETE "http://localhost/holds/11" \  
         -H "Content-Type: application/json"  
+
+Confirm conflict
+
+    curl -X POST "http://localhost/slots/4/hold" \
+        -H "Content-Type: application/json" \
+        -H "Idempotency-Key: 11111111-1111-1111-1111-111111111113"

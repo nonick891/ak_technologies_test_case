@@ -33,7 +33,9 @@ class HoldController extends Controller
         // 2. Create the new hold within a transaction, with row-level lock
         $hold = $this->slotService->createHold($slot, $idempotencyKey);
 
-        return $this->holdResponse($hold, Response::HTTP_CREATED);
+        return $hold instanceof Hold
+            ? $this->holdResponse($hold, Response::HTTP_CREATED)
+            : $this->conflictError(...$hold);
     }
 
     /**
