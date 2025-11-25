@@ -77,7 +77,7 @@ Create a new hold
 
 Cancel the new hold
 
-    curl -X DELETE "http://localhost/holds/11" \  
+    curl -X DELETE "http://localhost/holds/11" \
         -H "Content-Type: application/json"  
 
 Confirm conflict
